@@ -1,0 +1,23 @@
+[
+  {
+    "id": "wwc-format",
+    "question": "How many teams participated in the 2023 FIFA Women's World Cup and how were the groups structured?",
+    "reference_answer": "The 2023 FIFA Women's World Cup featured 32 teams split into eight groups of four, marking the first time the tournament expanded beyond 24 nations.",
+    "tags": ["tournament", "format"],
+    "context_ids": null
+  },
+  {
+    "id": "offside-rule",
+    "question": "Describe the offside offense according to the current IFAB Laws of the Game for women's football.",
+    "reference_answer": "A player is offside when any part of the head, body, or feet is nearer to the opponents' goal line than both the ball and the second-last opponent when involved in active play, excluding arms and hands, with specific exceptions for goal kicks, throw-ins, and corner kicks.",
+    "tags": ["laws", "rules"],
+    "context_ids": null
+  },
+  {
+    "id": "nwsltopscorer",
+    "question": "Who won the 2023 NWSL Golden Boot and how many goals did she score?",
+    "reference_answer": "Sophia Smith secured the 2023 NWSL Golden Boot with 11 goals for the Portland Thorns.",
+    "tags": ["nws", "players"],
+    "context_ids": null
+  }
+]

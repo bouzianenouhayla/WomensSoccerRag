@@ -1,30 +1,39 @@
-from __future__ import annotations
-
 import argparse
+import hashlib
 import json
-import uuid
 from pathlib import Path
 from typing import List, Tuple
 
-import chromadb
 import pandas as pd
 
-from .chunker import Chunker
-from .embedder import EmbeddingClient
+from .base import BaseChunker, BaseEmbedder, BaseVectorStore
+from .chunker import CharacterChunker
+from .embedder import LocalEmbedder
+from .vectorstores.chroma import ChromaStore
 
 DATA_DIR = Path("data")
 SOURCES_DIR = DATA_DIR / "sources"
 RAG_CSV = DATA_DIR / "rag_output.csv"
-VECTOR_PATH = Path("vectorstore/chroma_store")
-COLLECTION_NAME = "womens_soccer_rag"
+
 
 def load_rules_blocks() -> List[str]:
+    """Load text blocks from the IFAB laws CSV.
+
+    Returns:
+        List of raw text strings, one per CSV row.
+    """
     if not RAG_CSV.exists():
         return []
     df = pd.read_csv(RAG_CSV)
     return df["text"].dropna().tolist()
 
+
 def load_source_json() -> List[Tuple[str, str]]:
+    """Load all JSON source files as (name, json_string) pairs.
+
+    Returns:
+        List of (source_name, json_string) tuples.
+    """
     payloads: List[Tuple[str, str]] = []
     if not SOURCES_DIR.exists():
         return payloads
@@ -34,7 +43,16 @@ def load_source_json() -> List[Tuple[str, str]]:
         payloads.append((json_path.stem, json.dumps(data)))
     return payloads
 
-def build_documents(chunker: Chunker) -> Tuple[List[str], List[dict]]:
+
+def build_documents(chunker: BaseChunker) -> Tuple[List[str], List[dict]]:
+    """Chunk all source documents and return texts with metadata.
+
+    Args:
+        chunker: Chunking strategy to apply to each source block.
+
+    Returns:
+        Tuple of (chunk_texts, metadatas), one entry per chunk.
+    """
     documents: List[str] = []
     metadatas: List[dict] = []
 
@@ -50,38 +68,52 @@ def build_documents(chunker: Chunker) -> Tuple[List[str], List[dict]]:
 
     return documents, metadatas
 
-def ingest_documents(documents: List[str], metadatas: List[dict]) -> None:
+
+def ingest(
+    chunker: BaseChunker, embedder: BaseEmbedder, store: BaseVectorStore
+) -> None:
+    """Chunk, embed, and store all source documents.
+
+    Args:
+        chunker: Strategy for splitting documents into chunks.
+        embedder: Model for converting chunks to vectors.
+        store: Vector database to persist chunks in.
+    """
+    documents, metadatas = build_documents(chunker)
     if not documents:
         print("No documents to ingest.")
         return
-    VECTOR_PATH.mkdir(parents=True, exist_ok=True)
-    client = chromadb.PersistentClient(path=str(VECTOR_PATH))
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},
-    )
-    embedder = EmbeddingClient()
     embeddings = embedder.embed_documents(documents)
-    ids = [f"chunk-{uuid.uuid4()}" for _ in documents]
-    collection.add(
-        documents=documents,
-        metadatas=metadatas,
-        ids=ids,
-        embeddings=embeddings,
-    )
-    print(f"Ingested {len(documents)} chunks into collection '{COLLECTION_NAME}'.")
+    # Deterministic IDs: same text always gets the same ID across re-ingests
+    ids = [
+        "chunk-" + hashlib.sha256(doc.encode()).hexdigest()[:16] for doc in documents
+    ]
+    store.add(documents=documents, embeddings=embeddings, metadatas=metadatas, ids=ids)
+    print(f"Ingested {len(documents)} chunks.")
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Ingest documents into ChromaDB.")
+    """Parse CLI arguments.
+
+    Returns:
+        Parsed namespace with max_chars and overlap fields.
+    """
+    parser = argparse.ArgumentParser(
+        description="Ingest documents into a vector store."
+    )
     parser.add_argument("--max-chars", type=int, default=800)
     parser.add_argument("--overlap", type=int, default=150)
     return parser.parse_args()
 
+
 def main() -> None:
+    """Entry point: parse args and run ingestion with default backends."""
     args = parse_args()
-    chunker = Chunker(max_chars=args.max_chars, overlap_chars=args.overlap)
-    documents, metadatas = build_documents(chunker)
-    ingest_documents(documents, metadatas)
+    chunker = CharacterChunker(max_chars=args.max_chars, overlap_chars=args.overlap)
+    embedder = LocalEmbedder()
+    store = ChromaStore()
+    ingest(chunker=chunker, embedder=embedder, store=store)
+
 
 if __name__ == "__main__":
     main()

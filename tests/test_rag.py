@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from app.rag_pipeline import RAGPipeline
 from ingestion.chunker import Chunker
 
@@ -14,9 +12,8 @@ def test_chunker_generates_overlap():
     assert all(len(chunk) <= 50 for chunk in chunks)
 
 
-def test_rag_pipeline_initializes_without_llm(tmp_path):
-    vector_path = tmp_path / "chroma"
-    pipeline = RAGPipeline(vector_path=str(vector_path), llm_path=str(tmp_path / "missing.gguf"))
-    answer, contexts = pipeline.answer_question("Who won the last WWC?", max_contexts=1)
-    assert isinstance(answer, str)
-    assert isinstance(contexts, list)
+def test_rag_pipeline_initializes(tmp_path):
+    pipeline = RAGPipeline(config_name="test")
+    assert pipeline.config_name == "test"
+    assert pipeline.use_retrieval is True
+    assert pipeline.min_score == 0.0

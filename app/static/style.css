@@ -110,6 +110,28 @@ body {
     cursor: pointer;
 }
 
+.backend-select {
+    padding: 0.85rem 1rem;
+    border-radius: 999px;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.bubble p {
+    margin: 0;
+}
+
+.bubble .meta {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
 @keyframes slide-up {
     from {
         transform: translateY(10px);

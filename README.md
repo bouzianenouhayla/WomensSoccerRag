@@ -1,5 +1,7 @@
 # Women's Soccer RAG
 
+**A local Retrieval-Augmented Generation (RAG) system for answering questions about women's football, using open data, ChromaDB, and a small open-source LLM.**
+
 Retrieval-Augmented Generation system focused on women's football rules, tournaments, and statistics.
 
 ## Stack

@@ -16,6 +16,7 @@ RESOURCES: Dict[str, str] = {
     "lineups_fifa_wwc_final": f"{BASE_URL}/lineups/22912.json",
 }
 
+
 def download_resource(name: str, url: str) -> None:
     response = requests.get(url, timeout=30)
     response.raise_for_status()
@@ -24,9 +25,11 @@ def download_resource(name: str, url: str) -> None:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
     print(f"Saved {name} to {TARGET_DIR}")
 
+
 def main() -> None:
     for name, url in RESOURCES.items():
         download_resource(name, url)
+
 
 if __name__ == "__main__":
     main()

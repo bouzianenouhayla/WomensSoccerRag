@@ -4,17 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Women's Soccer RAG</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}" />
 </head>
 <body>
     <main class="shell">
         <section class="hero">
             <h1>Women's Soccer Knowledge Lab</h1>
-            <p>Ask about laws, tournaments, or stats. Answers stay local using a Retrieval-Augmented Generator.</p>
+            <p>Ask about laws, tournaments, or stats. Compare local and API backends side by side.</p>
         </section>
         <section class="chat-panel">
             <div id="messages" class="messages"></div>
             <form id="chat-form" class="chat-form">
+                <select id="backend" name="backend" class="backend-select">
+                    <option value="local">Local (Phi-3)</option>
+                    <option value="anthropic">Anthropic (Haiku)</option>
+                </select>
                 <input id="question" name="question" placeholder="Ask something..." required minlength="3" />
                 <button type="submit">Ask</button>
             </form>
@@ -23,12 +27,25 @@
     <script>
         const form = document.getElementById('chat-form');
         const input = document.getElementById('question');
+        const backendSelect = document.getElementById('backend');
         const messages = document.getElementById('messages');
 
-        function appendMessage(role, text) {
+        function appendMessage(role, text, meta) {
             const bubble = document.createElement('div');
             bubble.className = `bubble ${role}`;
-            bubble.textContent = text;
+
+            const textNode = document.createElement('p');
+            textNode.textContent = text;
+            bubble.appendChild(textNode);
+
+            // Show config name and response time under assistant answers
+            if (meta) {
+                const metaNode = document.createElement('span');
+                metaNode.className = 'meta';
+                metaNode.textContent = `${meta.config_name} · ${meta.total_time_ms}ms`;
+                bubble.appendChild(metaNode);
+            }
+
             messages.appendChild(bubble);
             messages.scrollTop = messages.scrollHeight;
         }
@@ -36,19 +53,25 @@
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             const question = input.value.trim();
+            const backend = backendSelect.value;
             if (!question) return;
+
             appendMessage('user', question);
             input.value = '';
             appendMessage('assistant pending', 'Thinking...');
+
             try {
                 const response = await fetch('/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question, backend })
                 });
                 const data = await response.json();
                 messages.lastChild.remove();
-                appendMessage('assistant', data.answer);
+                appendMessage('assistant', data.answer, {
+                    config_name: data.config_name,
+                    total_time_ms: Math.round(data.total_time_ms)
+                });
             } catch (error) {
                 messages.lastChild.remove();
                 appendMessage('assistant error', 'Something went wrong. Check the server logs.');

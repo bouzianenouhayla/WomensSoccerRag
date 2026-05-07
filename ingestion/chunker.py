@@ -1,14 +1,25 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Iterable, List
+from typing import List
+
+from .base import BaseChunker
+
 
 @dataclass
-class Chunker:
+class CharacterChunker(BaseChunker):
+    """Splits text by character count with overlap."""
+
     max_chars: int = 800
     overlap_chars: int = 150
 
     def chunk_text(self, text: str) -> List[str]:
+        """Split text into fixed-size character chunks with overlap.
+
+        Args:
+            text: Raw input text to split.
+
+        Returns:
+            List of chunk strings, each at most max_chars characters.
+        """
         if not text:
             return []
         chunks: List[str] = []
@@ -25,8 +36,6 @@ class Chunker:
             start += step
         return chunks
 
-    def chunk_many(self, texts: Iterable[str]) -> List[str]:
-        results: List[str] = []
-        for text in texts:
-            results.extend(self.chunk_text(text))
-        return results
+
+# Keep old name as alias so nothing else breaks
+Chunker = CharacterChunker

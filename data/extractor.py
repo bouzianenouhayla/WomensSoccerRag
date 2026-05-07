@@ -1,10 +1,12 @@
 import PyPDF2
 import pandas as pd
 
+
 class RAGPDFExtractor:
     """
     Extracts all potentially RAG-relevant content from a PDF.
     """
+
     def __init__(self, file_path):
         self.file_path = file_path
         self.raw_text = ""
@@ -43,16 +45,20 @@ class RAGPDFExtractor:
         if not self.paragraphs:
             self.extract_paragraphs()
 
-        df = pd.DataFrame({
-            "block_number": list(range(1, len(self.paragraphs)+1)),
-            "text": self.paragraphs,
-            "RAG_status": [""]*len(self.paragraphs)  # Placeholder for RAG tagging later
-        })
+        df = pd.DataFrame(
+            {
+                "block_number": list(range(1, len(self.paragraphs) + 1)),
+                "text": self.paragraphs,
+                "RAG_status": [""]
+                * len(self.paragraphs),  # Placeholder for RAG tagging later
+            }
+        )
         return df
+
 
 # Example CLI usage
 def main():
-    pdf_file = 'raw/rules/laws_games.pdf'
+    pdf_file = "raw/rules/laws_games.pdf"
     extractor = RAGPDFExtractor(pdf_file)
 
     print("Reading PDF...")

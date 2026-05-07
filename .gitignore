@@ -1,0 +1,32 @@
+# Virtual environments
+.venv/
+soccer_venv/
+data/.venv/
+
+# Local vector store and models
+vectorstore/
+models/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS metadata
+.DS_Store
+
+# Secrets — never commit
+.env
+*.env
+
+# Generated eval results
+evaluation/results/
+
+# Temporary test files
+test_request.json
+test_request.py
+
+# Claude Code local session config
+.claude/settings.local.json
+
+# Generated data files
+data/rag_output.csv

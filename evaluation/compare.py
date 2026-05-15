@@ -1,14 +1,7 @@
-"""Run a single pipeline config and append results to evaluation/results/all_runs.json.
-
-Usage:
-    python -m evaluation.compare --config rag          # RAG with no score filter
-    python -m evaluation.compare --config llm-only     # LLM only, no retrieval
-    python -m evaluation.compare --config rag-strict   # RAG with 0.5 score threshold
-"""
-
 import argparse
 import logging
 
+from app.agent_pipeline import AgentPipeline
 from app.backends.llm.anthropic_llm import AnthropicLLM
 from app.rag_pipeline import RAGPipeline
 from evaluation.run_eval import run
@@ -39,6 +32,9 @@ CONFIGS = {
         config_name="anthropic-haiku-llm-only",
         use_retrieval=False,
     ),
+    "agent-laws": AgentPipeline(tools=["search_laws"]),
+    "agent-stats": AgentPipeline(tools=["search_stats"]),
+    "agent-all": AgentPipeline(tools=["search_laws", "search_stats"]),
 }
 
 

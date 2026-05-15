@@ -7,6 +7,7 @@ from ingestion.embedder import LocalEmbedder
 from ingestion.vectorstores.chroma import ChromaStore
 
 from .backends.llm.base import BaseLLM
+from .backends.pipeline.base import BasePipeline
 from .backends.llm.local_llm import LocalLLM
 from .models import PipelineResult, RetrievedContext
 
@@ -22,7 +23,7 @@ SYSTEM_PROMPT_NO_CONTEXT = (
 )
 
 
-class RAGPipeline:
+class RAGPipeline(BasePipeline):
     """Orchestrates retrieval and generation using pluggable backends."""
 
     def __init__(

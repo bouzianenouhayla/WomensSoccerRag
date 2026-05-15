@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+from app.backends.pipeline.base import BasePipeline
 from app.rag_pipeline import RAGPipeline
 from evaluation.eval_models import EvalResult, EvalRunSummary, EvalSample
 
@@ -64,11 +65,28 @@ def load_dataset() -> list[EvalSample]:
     return [EvalSample.model_validate(item) for item in raw_samples]
 
 
-def run(pipeline: RAGPipeline | None = None) -> EvalRunSummary:
-    """Run token F1 and retrieval recall evaluation against all samples.
+def compute_tool_selection(
+    expected_tool: str | None, tools_called: list[str]
+) -> bool | None:
+    """Check whether the agent called the expected tool.
 
     Args:
-        pipeline: RAGPipeline to evaluate. Defaults to local Phi-3 + ChromaDB.
+        expected_tool: Tool name from the eval sample, or None if unlabelled.
+        tools_called: Tools the pipeline actually called.
+
+    Returns:
+        True/False if labelled, None otherwise.
+    """
+    if not expected_tool:
+        return None
+    return expected_tool in tools_called
+
+
+def run(pipeline: BasePipeline | None = None) -> EvalRunSummary:
+    """Run token F1, retrieval recall, and tool selection evaluation against all samples.
+
+    Args:
+        pipeline: BasePipeline to evaluate. Defaults to local Phi-3 + ChromaDB.
 
     Returns:
         EvalRunSummary with per-sample results and aggregate metrics.
@@ -83,6 +101,9 @@ def run(pipeline: RAGPipeline | None = None) -> EvalRunSummary:
         pipeline_result = pipeline.answer_question(sample.question)
         f1 = token_f1(pipeline_result.answer, sample.reference_answer)
         recall = compute_retrieval_recall(sample.context_ids, pipeline_result.contexts)
+        tool_correct = compute_tool_selection(
+            sample.expected_tool, pipeline_result.tools_called
+        )
 
         results.append(
             EvalResult(
@@ -96,12 +117,14 @@ def run(pipeline: RAGPipeline | None = None) -> EvalRunSummary:
                 total_time_ms=pipeline_result.total_time_ms,
                 retrieval_time_ms=pipeline_result.retrieval_time_ms,
                 llm_time_ms=pipeline_result.llm_time_ms,
+                tool_selection_correct=tool_correct,
             )
         )
 
     summary = EvalRunSummary(config_name=pipeline.config_name, results=results)
 
     # Build the run entry to append
+    tool_acc = summary.tool_selection_accuracy
     run_entry = {
         "config_name": summary.config_name,
         "timestamp": datetime.now().isoformat(),
@@ -109,6 +132,7 @@ def run(pipeline: RAGPipeline | None = None) -> EvalRunSummary:
         "avg_retrieval_recall": round(summary.average_retrieval_recall, 4),
         "avg_total_ms": round(summary.average_total_time_ms, 2),
         "avg_llm_ms": round(summary.average_llm_time_ms, 2),
+        "tool_selection_accuracy": round(tool_acc, 4) if tool_acc is not None else None,
         "num_samples": len(results),
         "results": [r.model_dump() for r in results],
     }
@@ -126,12 +150,13 @@ def run(pipeline: RAGPipeline | None = None) -> EvalRunSummary:
     all_runs_path.write_text(json.dumps(all_runs, indent=2), encoding="utf-8")
 
     logger.info(
-        "Config=%s | Samples=%d | F1=%.3f | Recall=%.3f | "
+        "Config=%s | Samples=%d | F1=%.3f | Recall=%.3f | ToolAcc=%s | "
         "Avg total=%.0fms | Avg LLM=%.0fms | Appended to %s",
         summary.config_name,
         len(results),
         summary.average_f1,
         summary.average_retrieval_recall,
+        f"{tool_acc:.3f}" if tool_acc is not None else "n/a",
         summary.average_total_time_ms,
         summary.average_llm_time_ms,
         all_runs_path,

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from app.rag_pipeline import RAGPipeline
 from ingestion.chunker import Chunker
 

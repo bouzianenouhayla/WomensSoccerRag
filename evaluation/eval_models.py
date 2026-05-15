@@ -10,6 +10,7 @@ class EvalSample(BaseModel):
     question: str
     reference_answer: str
     tags: List[str] = Field(default_factory=list)
+    expected_tool: Optional[str] = None
     context_ids: Optional[List[str]] = None
 
 
@@ -26,6 +27,8 @@ class EvalResult(BaseModel):
     total_time_ms: float
     retrieval_time_ms: float
     llm_time_ms: float
+    # None when the sample has no expected_tool or pipeline is not agentic
+    tool_selection_correct: Optional[bool] = None
 
 
 class EvalRunSummary(BaseModel):
@@ -61,3 +64,15 @@ class EvalRunSummary(BaseModel):
         if not self.results:
             return 0.0
         return sum(r.llm_time_ms for r in self.results) / len(self.results)
+
+    @property
+    def tool_selection_accuracy(self) -> float | None:
+        """Fraction of samples where the agent picked the correct tool.
+
+        Returns:
+            Accuracy between 0.0 and 1.0, or None if no samples have tool labels.
+        """
+        labelled = [r for r in self.results if r.tool_selection_correct is not None]
+        if not labelled:
+            return None
+        return sum(r.tool_selection_correct for r in labelled) / len(labelled)

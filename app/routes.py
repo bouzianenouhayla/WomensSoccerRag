@@ -4,7 +4,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from .agent_pipeline import AgentPipeline
 from .backends.llm.anthropic_llm import AnthropicLLM
+from .backends.pipeline.base import BasePipeline
 from .models import QueryRequest, QueryResponse
 from .rag_pipeline import RAGPipeline
 
@@ -12,9 +14,12 @@ router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 # Both pipelines are created once at startup — no overhead per request
-PIPELINES = {
-    "local": RAGPipeline(config_name="local-phi3-chroma"),
+_local_rag = RAGPipeline(config_name="local-phi3-chroma")
+
+PIPELINES: dict[str, BasePipeline] = {
+    "local": _local_rag,
     "anthropic": RAGPipeline(llm=AnthropicLLM(), config_name="anthropic-haiku-chroma"),
+    "agent": AgentPipeline(rag=_local_rag),
 }
 
 

@@ -17,8 +17,10 @@ from ragas.metrics import (
     context_recall,
 )
 
-from app.rag_pipeline import RAGPipeline
+from app.agent_pipeline import AgentPipeline
 from app.backends.llm.anthropic_llm import AnthropicLLM
+from app.backends.pipeline.base import BasePipeline
+from app.rag_pipeline import RAGPipeline
 from evaluation.eval_models import EvalSample
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -26,6 +28,14 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 EVAL_PATH = Path(__file__).with_name("eval_dataset.json")
 RESULTS_DIR = Path(__file__).parent / "results"
 logger = logging.getLogger(__name__)
+
+CONFIGS: dict[str, BasePipeline] = {
+    "local": RAGPipeline(config_name="local-phi3-chroma"),
+    "anthropic": RAGPipeline(llm=AnthropicLLM(), config_name="anthropic-haiku-chroma"),
+    "agent-laws": AgentPipeline(tools=["search_laws"]),
+    "agent-stats": AgentPipeline(tools=["search_stats"]),
+    "agent-all": AgentPipeline(tools=["search_laws", "search_stats"]),
+}
 
 
 def load_dataset() -> list[EvalSample]:
@@ -40,13 +50,13 @@ def load_dataset() -> list[EvalSample]:
 
 
 def build_ragas_dataset(
-    pipeline: RAGPipeline,
+    pipeline: BasePipeline,
     samples: list[EvalSample],
 ) -> tuple[EvaluationDataset, list[dict]]:
     """Run the pipeline on every sample and format results for Ragas.
 
     Args:
-        pipeline: The RAGPipeline instance to evaluate.
+        pipeline: Any BasePipeline instance to evaluate.
         samples: Eval samples to run the pipeline against.
 
     Returns:
@@ -63,7 +73,7 @@ def build_ragas_dataset(
             SingleTurnSample(
                 user_input=sample.question,
                 response=result.answer,
-                retrieved_contexts=context_texts,
+                retrieved_contexts=context_texts if context_texts else [""],
                 reference=sample.reference_answer,
             )
         )
@@ -73,6 +83,7 @@ def build_ragas_dataset(
                 "question": sample.question,
                 "answer": result.answer,
                 "reference_answer": sample.reference_answer,
+                "expected_tool": sample.expected_tool,
                 "total_time_ms": result.total_time_ms,
                 "retrieval_time_ms": result.retrieval_time_ms,
                 "llm_time_ms": result.llm_time_ms,
@@ -87,13 +98,10 @@ def run(config: str = "local") -> None:
     """Evaluate a pipeline config with Ragas LLM-as-judge metrics.
 
     Args:
-        config: Pipeline to evaluate — 'local' for Phi-3, 'anthropic' for API.
-                Anthropic Haiku is always used as the judge regardless of config.
+        config: Pipeline config name. One of the keys in CONFIGS.
+                Anthropic Haiku is always used as the judge.
     """
-    if config == "anthropic":
-        pipeline = RAGPipeline(llm=AnthropicLLM(), config_name="anthropic-haiku-chroma")
-    else:
-        pipeline = RAGPipeline(config_name="local-phi3-chroma")
+    pipeline = CONFIGS[config]
 
     judge_llm = LangchainLLMWrapper(
         ChatAnthropic(
@@ -146,9 +154,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
-        choices=["local", "anthropic"],
+        choices=list(CONFIGS.keys()),
         default="local",
-        help="Which pipeline to evaluate",
+        help=f"Which pipeline to evaluate. Options: {', '.join(CONFIGS.keys())}",
     )
     args = parser.parse_args()
     run(config=args.config)

@@ -13,6 +13,9 @@ requests>=2.32.0
 kaggle>=1.6.14
 pytest>=8.1.0
 
+# StatsBomb open data
+statsbombpy>=1.0.3
+
 # API LLM backends
 anthropic>=0.25.0
 python-dotenv>=1.0.0

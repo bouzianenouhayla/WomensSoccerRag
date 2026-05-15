@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3)
     max_contexts: int = Field(5, ge=1, le=20)
-    backend: str = Field("local", pattern="^(local|anthropic)$")
+    backend: str = Field("local", pattern="^(local|anthropic|agent)$")
 
 
 class RetrievedContext(BaseModel):
@@ -28,6 +28,8 @@ class PipelineResult(BaseModel):
     retrieval_used: bool = True
     # 0 means retrieval ran but nothing passed the score threshold
     chunks_retrieved: int = 0
+    # Tools called by the agent, empty for non-agentic pipelines
+    tools_called: List[str] = []
 
 
 class QueryResponse(BaseModel):
